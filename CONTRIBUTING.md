@@ -1,161 +1,106 @@
-# Contributing to CineForge AI Pro
+CONTRIBUTING.md
+CineForge AI Pro
+How to Contribute & Development Workflow
+Last Updated: 8 July 2026
+Thank you for contributing to CineForge AI Pro! This document explains how our team works together to deliver a high-quality project on a tight timeline.
+1. Project Principles
+Before contributing, please read and understand the following documents:
 
-Welcome to the team! Please read this guide before making your first contribution.
+CHARTER.md — Vision, scope, goals, and success criteria
+MEMORY.md — Current decisions and project context
+AGENT.md — Rules for AI-assisted development
+SECURITY.md — Security requirements and Risk Register
 
----
+All contributions must align with these documents.
+2. Development Workflow
+We follow a simple and efficient workflow suited for a small team with a hard deadline.
+Branching Strategy
 
-## 1. Prerequisites
+main branch is protected and always represents the latest stable state.
+Create a new branch for every task or feature:
+Use descriptive names, e.g.:
+feature/secure-encryption
+feature/budget-estimator
+fix/arabic-parsing-edge-case
+docs/update-risk-register
 
-- Python 3.11+
-- Node.js 20+ and npm
-- IBM watsonx.ai account with Granite access
-- IBM Bob access (SkillsBuild)
 
----
 
-## 2. Getting Started
+Commit Message Standard (Mandatory)
+Every commit must follow the IBM Bob tagging convention:
+text[Bob:Ask #NN] Description of what was asked/analyzed
+[Bob:Plan #NN] Description of the plan or architecture decision
+[Bob:Code #NN] Description of the implementation or fix
+Examples:
 
-### Backend Setup
-```bash
-cd src/backend
+[Bob:Plan #3] Designed client-side encryption flow with local key generation
+[Bob:Code #7] Implemented AES-256 encryption module in backend
+[Bob:Ask #12] Reviewed Arabic tokenization fallback strategy
+
+Screenshots of Bob usage should be placed in /docs/bob-log/ and referenced in the commit when relevant.
+3. Pull Request Process
+
+Create a feature branch from main.
+Make your changes and commit using the Bob tagging format.
+Push your branch and open a Pull Request.
+In the PR description, include:
+What was done
+Which Bob tags were used
+Any risks or decisions that should be recorded in MEMORY.md
+
+Request review from at least one other team member.
+Once approved and CI passes (if applicable), merge into main.
+
+Note: Small documentation fixes or typo corrections can be merged directly by the author after pushing.
+4. Local Development Setup
+
+Clone the repository:Bashgit clone https://github.com/your-org/cineforge-ai-pro.git
+cd cineforge-ai-pro
+Set up the backend (FastAPI):Bashcd src/backend
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+source venv/bin/activate     # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp ../../.env.example ../../.env
-# Fill in your credentials in .env
-uvicorn main:app --reload
-```
-
-### Frontend Setup
-```bash
-cd src/frontend
+Set up the frontend (Next.js):Bashcd src/frontend
 npm install
-cp ../../.env.example .env.local
-# Fill in your NEXT_PUBLIC_* variables
 npm run dev
-```
+Create a .env file based on .env.example (never commit real secrets).
 
----
+5. Code Quality Guidelines
 
-## 3. IBM Bob Workflow (Required)
+Write clean, readable, and well-documented code.
+Follow existing code style in the repository.
+Use TypeScript in the frontend.
+Add basic error handling and input validation.
+Keep components modular (especially parsing, generation, and security layers).
+Update relevant documentation (MEMORY.md, SECURITY.md, etc.) when making significant changes.
 
-Every major development task **must** use IBM Bob and document the session.
+6. Security When Contributing
 
-### Workflow
-1. **Ask Mode** — Research the problem, ask questions, understand requirements
-2. **Plan Mode** — Create a plan/architecture for your solution
-3. **Code Mode** — Generate and iterate on the implementation
+Never commit API keys, tokens, or sensitive credentials.
+Follow the security rules defined in SECURITY.md.
+If you discover a potential security issue, report it privately to the Cybersecurity Specialist instead of opening a public issue.
 
-### Documentation
-- Save screenshots of your Bob sessions to `docs/bob-log/`
-- Filename format: `YYYY-MM-DD_<short-topic>.png`
-- Log the session in `MEMORY.md` under "IBM Bob Usage Log"
+7. Using AI Tools (Copilot, etc.)
 
-### Bob Tag in PRs
-Every PR must include a `## IBM Bob Session` section in the PR description (see PR template).
+Follow the rules in AGENT.md when using GitHub Copilot or any other AI assistant.
+Always review AI-generated code carefully before committing.
+Major AI-generated features should be discussed with the team.
 
----
+8. Documentation Contributions
+We maintain high-quality documentation. When updating docs:
 
-## 4. Branching Strategy
+Keep language clear and professional.
+Update MEMORY.md for any important decisions.
+Use consistent formatting.
 
-```
-main                  ← Protected; requires PR + review
-├── develop           ← Integration branch
-│   ├── feat/<name>   ← New features
-│   ├── fix/<name>    ← Bug fixes
-│   └── docs/<name>   ← Documentation updates
-```
+9. Getting Help
 
-- Branch from `develop` for features
-- Name branches: `feat/script-parser`, `fix/rtl-layout`, `docs/architecture`
-- Open PRs to `develop` (not `main` directly)
+For technical questions: Open a GitHub Issue or discuss in the team channel.
+For scope or direction questions: Refer to CHARTER.md first.
+For urgent blockers: Tag the relevant role owner directly.
 
----
+10. Recognition
+All meaningful contributions will be acknowledged. This includes code, documentation, security improvements, and demo preparation.
 
-## 5. Commit Message Format
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>(<scope>): <short description>
-
-[optional body]
-
-[optional footer: Bob session reference]
-```
-
-**Types**: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`  
-**Scopes**: `backend`, `frontend`, `security`, `ml`, `docs`, `ci`
-
-**Examples:**
-```
-feat(backend): add script upload endpoint with AES decryption
-fix(frontend): correct RTL layout on storyboard canvas
-docs(agent): update Bob session log for animatic pipeline
-chore(deps): update ibm-watsonx-ai to 0.2.6
-```
-
----
-
-## 6. Pull Request Process
-
-1. Create a branch from `develop`
-2. Make your changes following the code quality rules in `AGENT.md`
-3. Write/update tests for any new functionality
-4. Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`) completely
-5. Ensure all CI checks pass
-6. Request review from at least one team member
-7. Merge only after approval
-
----
-
-## 7. Code Quality
-
-### Python (backend)
-- Follow PEP 8
-- Use type hints everywhere
-- Maximum line length: 100 characters
-- Docstrings for all public functions/classes
-- Run: `ruff check src/backend/` before committing
-
-### TypeScript (frontend)
-- Strict TypeScript (`strict: true` in tsconfig)
-- No `any` types unless absolutely necessary
-- Run: `npm run lint` before committing
-
----
-
-## 8. Testing
-
-### Backend
-```bash
-cd src/backend
-pytest
-```
-
-### Frontend
-```bash
-cd src/frontend
-npm run test
-```
-
----
-
-## 9. Team Role Ownership
-
-| Area | Owner Role | Key Files |
-|------|-----------|-----------|
-| Script parsing & NLP | Data Science Lead | `src/backend/services/script_parser.py` |
-| Budget estimator | Data Science Lead | `src/backend/services/budget_estimator.py` |
-| Granite integration | ML Engineer | `src/backend/services/granite_service.py` |
-| Animatic pipeline | ML Engineer | `src/backend/services/animatic.py` |
-| Client-side encryption | Cybersecurity Specialist | `src/frontend/lib/crypto.ts` |
-| Watermarking service | Cybersecurity Specialist | `src/backend/services/watermark.py` |
-| Frontend UI | Full-Stack Devs | `src/frontend/app/`, `src/frontend/components/` |
-| FastAPI routers | Full-Stack Devs | `src/backend/routers/` |
-
----
-
-## 10. Questions?
-
-Update `MEMORY.md` with any architectural decisions you make so the team (and Copilot) stays in sync.
+Thank you for helping build CineForge AI Pro!
+By following these guidelines, we can maintain quality, move quickly, and deliver a strong submission by 31 July 2026.

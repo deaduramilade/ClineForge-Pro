@@ -1,124 +1,176 @@
-# CineForge AI Pro — Security Policy
+SECURITY.md
+CineForge AI Pro
+Security Architecture, Risk Register & Hardening Guidelines
+Last Updated: 8 July 2026
+1. Security Philosophy
+CineForge AI Pro treats intellectual property protection as a core feature, not an afterthought. Every script and generated asset must be handled with care because creators often work with sensitive or valuable creative material.
+Our approach follows the principle of "Secure by Default":
 
----
+Encrypt sensitive data as early as possible (on the client).
+Apply provenance and watermarking to all generated outputs.
+Maintain transparent and defensible security claims.
 
-## 1. Overview
+2. Corrected Security Claims (Hardening Addendum)
+The following claims have been officially updated to reflect what the system can actually deliver and defend:
 
-Security is a **first-class concern** in CineForge AI Pro. Scripts and creative assets are sensitive intellectual property. This document defines mandatory security practices for all contributors and AI agents.
 
----
 
-## 2. Client-Side Encryption
 
-### 2.1 Requirement
-All script files and creative content **MUST be encrypted client-side before transmission**. No plaintext script data may be sent over the network.
 
-### 2.2 Implementation
-- **Algorithm**: AES-256-GCM
-- **API**: WebCrypto API (`window.crypto.subtle`)
-- **Key management**: Encryption keys are derived from a user passphrase + PBKDF2; keys never leave the browser
-- **Implementation file**: `src/frontend/lib/crypto.ts`
 
-### 2.3 Rules for Developers
-```
-✅ DO: Encrypt before sending to any API endpoint
-✅ DO: Use AES-256-GCM with a random 96-bit IV per encryption
-✅ DO: Use PBKDF2 with ≥ 100,000 iterations for key derivation
-❌ DO NOT: Transmit plaintext scripts over HTTP or HTTPS
-❌ DO NOT: Store raw script content in localStorage or sessionStorage
-❌ DO NOT: Log decrypted content in browser console or server logs
-```
 
----
 
-## 3. C2PA-Inspired Watermarking
 
-### 3.1 Requirement
-Every AI-generated image and video frame **MUST carry a verifiable watermark** that encodes provenance information.
 
-### 3.2 Implementation
-- **Method**: Metadata embedding (EXIF/XMP) + perceptual hash stored in a manifest
-- **Manifest content**: timestamp, Granite model version, project ID, user ID hash
-- **Implementation file**: `src/backend/services/watermark.py`
 
-### 3.3 Rules for Developers
-```
-✅ DO: Apply watermark to every image before returning it to the client
-✅ DO: Include generation timestamp and model identifier in manifest
-✅ DO: Verify watermark integrity on asset retrieval
-❌ DO NOT: Return unwatermarked media to the client
-❌ DO NOT: Allow watermark removal via any API endpoint
-```
 
----
 
-## 4. Secrets & Credentials Management
 
-### 4.1 Environment Variables
-- **ALL** credentials must be stored in environment variables
-- Use `.env` locally (never committed to git)
-- `.env.example` provides the template — no real values allowed in this file
-- In production/CI, use secure secret stores (IBM Secrets Manager, GitHub Secrets)
 
-### 4.2 .gitignore Rules
-The `.gitignore` already excludes `.env` files. **Never remove these entries.**
 
-### 4.3 Required Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `WATSONX_API_KEY` | IBM watsonx.ai API key | ✅ |
-| `WATSONX_PROJECT_ID` | watsonx.ai project identifier | ✅ |
-| `WATSONX_URL` | watsonx.ai endpoint URL | ✅ |
-| `ENCRYPTION_SALT` | Server-side salt for key derivation (32+ bytes, hex) | ✅ |
-| `ALLOWED_ORIGINS` | Comma-separated CORS origins | ✅ |
-| `SECRET_KEY` | Application secret key (32+ bytes, random) | ✅ |
-| `LOG_LEVEL` | Logging verbosity (info/warning/error) | ✅ |
 
----
 
-## 5. API Security
 
-### 5.1 CORS
-- Strict allowlist configured in FastAPI CORS middleware
-- Only allow origins listed in `ALLOWED_ORIGINS`
-- Never use wildcard (`*`) in production
 
-### 5.2 Input Validation
-- All request bodies validated by Pydantic models
-- File uploads: validate MIME type and file size
-- Maximum file size: 50 MB for script uploads
 
-### 5.3 Rate Limiting
-- Implement rate limiting on `/api/generate/*` endpoints to prevent credit abuse
-- Use `slowapi` (FastAPI compatible) for rate limiting
 
----
+AreaCorrected ClaimPrevious (Incorrect) ClaimReason for ChangeEncryptionClient-side AES-256 encryption with local key generationZero-knowledge client-side script encryptionServer processes the script content, so true zero-knowledge is not achievedContent ProvenanceC2PA-inspired content provenance metadataC2PA-standard content credentialsFull C2PA compliance requires the official library. Current implementation follows the same principles
+Note: Full C2PA support via the c2pa-rs library remains a low-effort future upgrade and is documented as such.
+3. Technical Risk Register
+This register is a living document. It must be reviewed and updated at the end of every phase.
 
-## 6. Data Handling Rules
 
-| Data Type | Handling Rule |
-|-----------|--------------|
-| Raw script content | Encrypt client-side; never store plaintext server-side |
-| Generated storyboard frames | Watermark before delivery; store with project ID |
-| API keys | Environment variables only |
-| User passphrases | Never transmitted; used only for local key derivation |
-| Budget estimates | No PII; may be stored in project metadata |
 
----
 
-## 7. Reporting Security Issues
 
-If you discover a security vulnerability in this project:
-1. **Do not** open a public GitHub issue
-2. Contact the project team directly
-3. Include a clear description and reproduction steps
 
----
 
-## 8. Compliance
 
-This project follows:
-- OWASP Top 10 guidelines
-- C2PA (Coalition for Content Provenance and Authenticity) principles
-- IBM watsonx.ai terms of service and responsible AI guidelines
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RiskLikelihoodImpactMitigation / Fallback StrategyOwnerStatusArabic NLP parsing fails on non-standard formatting or mixed Arabic/English scriptsMediumHighImplement rule-based tokenization fallback (regex + keyword scene markers) so the pipeline degrades gracefullyData Science LeadPhase 1watsonx.ai rate limit or latency spike during live demoMediumHighMaintain a cached run of the exact judge-line demo scenario as an instant backupMachine Learning EngineerPhase 2Diffusion model output quality inconsistent for a judge’s improvised lineLow-MediumMediumConstrain Live Judge Mode to short single-sentence inputs and pre-tune prompt templates for common shot typesMachine Learning EngineerPhase 2Animatic audio-visual sync drifts under time pressureLowMediumCap animatic length to 15–20 seconds per scene; perform manual sync check before demoMachine Learning EngineerPhase 3Unauthorized access to uploaded scriptsMediumHighEnforce client-side encryption before upload + strict API authentication and rate limitingCybersecurity SpecialistPhase 1Generated assets being misused or leakedMediumHighApply invisible forensic watermarking + C2PA-inspired provenance metadata on every outputCybersecurity SpecialistPhase 2
+4. Encryption Implementation
+
+All scripts must be encrypted on the client side using AES-256 before being transmitted to the server.
+Encryption keys must be generated locally on the user’s device and never sent to the server.
+The server should only ever receive encrypted data.
+Temporary files on the server must be automatically deleted after processing (recommended: within 1 hour).
+
+5. Content Provenance & Watermarking
+
+Every generated storyboard frame and animatic must include:
+Invisible forensic watermarking
+C2PA-inspired provenance metadata (embedded or attached)
+
+Watermarking must survive common image transformations (compression, resizing, format conversion).
+The watermark should allow traceability back to the original generation request without exposing user data.
+
+6. Data Handling & Privacy Principles
+
+Data Minimization: Only collect and process the minimum data required.
+Ephemeral Storage: Scripts and generated assets should not be stored longer than necessary.
+No Training on User Data: User scripts and generations must not be used to train or improve models.
+Auditability: All security-related decisions and implementations must be documented.
+
+7. API & Endpoint Security
+
+All API endpoints must implement proper authentication and rate limiting.
+Input validation is mandatory on all endpoints that accept scripts or generation requests.
+Sensitive operations (especially generation) should be protected against abuse.
+Error messages should not leak internal system details.
+
+8. Demo & Production Security Considerations
+
+For the Live Judge Mode, input sanitization is critical.
+A cached “safe” demo scenario must always be available as a fallback.
+In production (future), consider adding usage quotas and abuse detection.
+
+9. Responsibilities
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RoleSecurity ResponsibilitiesCybersecurity SpecialistOverall security architecture, encryption, watermarking, Risk Register, API hardeningData Science LeadSecure parsing logic and fallback mechanismsMachine Learning EngineerSecure model inference, prompt safety, and generation pipeline hardeningFull-Stack DevelopersSecure frontend-backend communication, client-side encryption implementation, and UI-level protections
+10. Living Document Instructions
+This file must be updated whenever:
+
+A new risk is identified
+A mitigation is implemented or changed
+Security-related architectural decisions are made
+
+All team members and AI agents should treat this document as authoritative for security matters.
+
+End of SECURITY.md
