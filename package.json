@@ -1,0 +1,19 @@
+{
+  "name": "cineforge-ai-pro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure multimodal AI pipeline: Arabic & English scripts → storyboards, animatics, and budget estimates via IBM Granite",
+  "scripts": {
+    "dev:frontend": "cd src/frontend && npm run dev",
+    "build:frontend": "cd src/frontend && npm run build",
+    "lint:frontend": "cd src/frontend && npm run lint",
+    "install:frontend": "cd src/frontend && npm install"
+  },
+  "workspaces": [
+    "src/frontend"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
