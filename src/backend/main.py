@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import animatic, budget, generate, health, scripts
+from src.backend.routers import animatic, budget, generate, health, scripts
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "info").upper(),
