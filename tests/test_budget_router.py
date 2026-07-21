@@ -22,10 +22,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-# conftest.py has already inserted src/backend onto sys.path.
-import services.script_store as script_store
-from routers.budget import router as budget_router
-from routers.scripts import router as scripts_router
+import src.backend.services.script_store as script_store
+from src.backend.routers.budget import router as budget_router
+from src.backend.routers.scripts import router as scripts_router
 
 # ---------------------------------------------------------------------------
 # Test application — budget + scripts routers

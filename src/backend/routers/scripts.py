@@ -25,9 +25,9 @@ import hashlib
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from models.schemas import ParsedScriptResponse, SceneMetadata
-from services.script_parser import ScriptParser
-from services.script_store import exists, get, save
+from src.backend.models.schemas import ParsedScriptResponse, SceneMetadata
+from src.backend.services.script_parser import ScriptParser
+from src.backend.services.script_store import exists, get, save
 
 router = APIRouter()
 

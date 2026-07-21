@@ -33,8 +33,7 @@ from decimal import Decimal
 
 import pytest
 
-# conftest.py inserts src/backend onto sys.path
-from services.budget_estimator import (
+from src.backend.services.budget_estimator import (
     BudgetEstimate,
     BudgetEstimator,
     CHARACTER_DAY_FACTOR,

@@ -25,8 +25,8 @@ The store is process-scoped and ephemeral; see ``services/script_store.py``.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from services.budget_estimator import BudgetEstimator
-from services.script_store import get as store_get
+from src.backend.services.budget_estimator import BudgetEstimator
+from src.backend.services.script_store import get as store_get
 
 router = APIRouter()
 

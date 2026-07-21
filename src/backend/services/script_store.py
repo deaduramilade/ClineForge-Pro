@@ -17,7 +17,7 @@ is introduced, it should replace the functions in this module while leaving
 their call sites unchanged.
 """
 
-from services.script_parser import ParsedScript
+from src.backend.services.script_parser import ParsedScript
 
 # Module-level store — process-scoped, ephemeral.
 _store: dict[str, ParsedScript] = {}
