@@ -1,20 +1,32 @@
 """Budget router — production cost estimation.
 
-Integration note (MVP / demo):
-    script_id is currently a client-supplied tracking label only.  It is
-    echoed back in the response for traceability but is NOT used to look up
-    any stored script.
+Two estimation modes
+---------------------
+1. **Explicit-count mode** (backward-compatible, original behaviour):
+   Supply ``scene_count`` (required ≥ 1) along with ``script_id``,
+   ``currency``, and ``region``.  ``location_count`` and ``character_count``
+   are optional (default 0).  The store is NOT consulted.
 
-    scene_count, location_count, and character_count are also client-supplied
-    because no parse-and-persist workflow exists yet.  When a script-storage
-    layer is added, this endpoint should instead accept a script_id and derive
-    the counts from the stored ParsedScript.
+2. **Store-lookup mode** (new, requires parse-on-upload workflow):
+   Omit ``scene_count`` and supply only ``script_id``, ``currency``, and
+   ``region``.  The router looks up the ``ParsedScript`` in the ephemeral
+   store and derives ``scene_count``, ``location_count``, and
+   ``character_count`` automatically.
+
+   Returns HTTP 404 if the ``script_id`` is unknown.
+   Returns HTTP 422 if the stored script has zero scenes (should not happen
+   in practice, but is guarded defensively).
+
+MVP limitation
+--------------
+The store is process-scoped and ephemeral; see ``services/script_store.py``.
 """
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from services.budget_estimator import BudgetEstimator
+from services.script_store import get as store_get
 
 router = APIRouter()
 
@@ -27,32 +39,37 @@ _estimator = BudgetEstimator()
 
 
 class BudgetRequest(BaseModel):
-    # Tracking label — echoed in the response; not used to look up stored data.
+    # Tracking label — echoed in the response.
+    # In store-lookup mode it is also used to resolve parsed metadata.
     script_id: str = Field(
         ...,
         min_length=1,
         description=(
-            "Non-empty tracking identifier for this estimate request.  "
-            "Currently a client-supplied label; will reference a stored "
-            "ParsedScript once a parse-and-persist workflow is in place."
+            "Non-empty tracking identifier.  "
+            "When ``scene_count`` is omitted the server looks this up in the "
+            "ephemeral script store to derive complexity counts automatically."
         ),
     )
 
-    # Production complexity inputs — client-supplied until parse-and-persist exists.
-    scene_count: int = Field(
-        ...,
+    # Production complexity inputs.
+    # Optional: when None the store-lookup mode is activated.
+    scene_count: int | None = Field(
+        default=None,
         ge=1,
-        description="Number of scenes in the script (must be ≥ 1).",
+        description=(
+            "Number of scenes (must be ≥ 1 if supplied).  "
+            "Omit to derive automatically from a previously uploaded script."
+        ),
     )
     location_count: int = Field(
         default=0,
         ge=0,
-        description="Number of unique locations in the script (must be ≥ 0).",
+        description="Number of unique locations (must be ≥ 0).  Ignored in store-lookup mode.",
     )
     character_count: int = Field(
         default=0,
         ge=0,
-        description="Number of principal characters in the script (must be ≥ 0).",
+        description="Number of principal characters (must be ≥ 0).  Ignored in store-lookup mode.",
     )
 
     # Output preferences — unchanged from original contract.
@@ -100,22 +117,66 @@ async def estimate_budget(request: BudgetRequest) -> BudgetResponse:
     """
     Generate a deterministic production budget estimate.
 
-    Accepts script complexity metadata (scene count, unique locations,
-    principal character count) alongside output preferences (currency,
-    region) and returns a line-item budget with an estimated shoot-day count.
+    **Explicit-count mode** — supply ``scene_count`` directly:
+
+        {
+          "script_id": "my-label",
+          "scene_count": 20,
+          "location_count": 5,
+          "character_count": 8,
+          "currency": "USD",
+          "region": "gulf"
+        }
+
+    **Store-lookup mode** — omit ``scene_count``; the server resolves counts
+    from a previously uploaded and parsed script:
+
+        {
+          "script_id": "<id returned by POST /api/scripts/upload>",
+          "currency": "USD",
+          "region": "gulf"
+        }
 
     All rates and regional multipliers are transparent MVP planning
     assumptions documented in ``services/budget_estimator.py``.
-
-    Returns HTTP 422 for invalid inputs (unsupported region/currency, or
-    constraint violations not already caught by Pydantic field validation).
     """
+    # Resolve complexity counts.
+    if request.scene_count is not None:
+        # Explicit-count mode — use client-supplied values unchanged.
+        scene_count = request.scene_count
+        location_count = request.location_count
+        character_count = request.character_count
+    else:
+        # Store-lookup mode — derive counts from the stored ParsedScript.
+        parsed = store_get(request.script_id)
+        if parsed is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"Script '{request.script_id}' not found in the store. "
+                    "Upload and parse the script first via "
+                    "POST /api/scripts/upload, then retry."
+                ),
+            )
+        scene_count = parsed.scene_count
+        location_count = len(parsed.locations)
+        character_count = len(parsed.characters)
+
+        if scene_count < 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Stored script '{request.script_id}' has "
+                    f"scene_count={scene_count}, which is invalid for estimation."
+                ),
+            )
+
     try:
         result = await _estimator.estimate(
             script_id=request.script_id,
-            scene_count=request.scene_count,
-            location_count=request.location_count,
-            character_count=request.character_count,
+            scene_count=scene_count,
+            location_count=location_count,
+            character_count=character_count,
             currency=request.currency,
             region=request.region,
         )

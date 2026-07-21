@@ -5,10 +5,9 @@ Uses FastAPI's synchronous TestClient (backed by httpx) to exercise the
 full request-validation → BudgetEstimator → response pipeline without
 starting a real HTTP server.
 
-The app under test is constructed directly from the budget router so that
-the tests run under the same sys.path environment as the rest of the suite
-(src/backend on sys.path via conftest.py) without depending on main.py's
-absolute-package import style.
+The app under test mounts both the budget router and the scripts router so
+that store-lookup integration tests can upload a script first, then estimate
+from the resulting script_id.
 
 All asserted monetary values are pre-computed from the deterministic
 BudgetEstimator formula and verified before being hard-coded here.
@@ -17,20 +16,38 @@ Status-code assertions use HTTP 202 because that is the status configured
 on the /estimate route.
 """
 
+import io
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # conftest.py has already inserted src/backend onto sys.path.
+import services.script_store as script_store
 from routers.budget import router as budget_router
+from routers.scripts import router as scripts_router
 
 # ---------------------------------------------------------------------------
-# Test application — budget router only
+# Test application — budget + scripts routers
 # ---------------------------------------------------------------------------
 
 _app = FastAPI()
 _app.include_router(budget_router, prefix="/api/budget")
+_app.include_router(scripts_router, prefix="/api/scripts")
 _client = TestClient(_app, raise_server_exceptions=True)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_store():
+    """Wipe the ephemeral store before and after every test."""
+    script_store.clear()
+    yield
+    script_store.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +62,7 @@ def _post(payload: dict):
 
 
 def _valid_payload(**overrides) -> dict:
-    """Return the minimal valid payload, optionally overriding fields."""
+    """Return the minimal valid payload (explicit-count mode), optionally overriding fields."""
     base = {
         "script_id": "test-001",
         "scene_count": 10,
@@ -56,6 +73,17 @@ def _valid_payload(**overrides) -> dict:
     }
     base.update(overrides)
     return base
+
+
+def _upload_script(content: bytes, filename: str = "script.txt",
+                   content_type: str = "text/plain") -> str:
+    """Upload a script and return its script_id."""
+    resp = _client.post(
+        "/api/scripts/upload",
+        files={"file": (filename, io.BytesIO(content), content_type)},
+    )
+    assert resp.status_code == 202, f"Upload failed: {resp.json()}"
+    return resp.json()["script_id"]
 
 
 # ---------------------------------------------------------------------------
@@ -227,15 +255,21 @@ def test_estimate_worked_example():
 # ---------------------------------------------------------------------------
 
 
-def test_missing_scene_count_rejected():
-    """scene_count is required; omitting it returns 422."""
+def test_missing_scene_count_without_stored_script_returns_404():
+    """
+    Omitting scene_count activates store-lookup mode.
+    When the script_id is not in the store, the router returns 404 — not 422.
+    The previous 422 expectation was correct under the old contract where
+    scene_count was required.  Under the new contract, omitting scene_count
+    is valid; the error is a missing script, not a validation error.
+    """
     payload = {
-        "script_id": "val-001",
+        "script_id": "unknown-id-xyz",
         "location_count": 2,
         "character_count": 3,
     }
     resp = _post(payload)
-    assert resp.status_code == 422
+    assert resp.status_code == 404
 
 
 def test_zero_scene_count_rejected():
@@ -286,3 +320,52 @@ def test_unsupported_currency_rejected():
     resp = _post(_valid_payload(currency="XYZ"))
     assert resp.status_code == 422
     assert "currency" in resp.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Store-lookup mode — upload first, then estimate via script_id only
+# ---------------------------------------------------------------------------
+
+_DEMO_SCRIPT = (
+    "INT. BAKERY - DAY\n\n"
+    "The smell of fresh bread fills the air.\n\n"
+    "BAKER\nGood morning.\n\n"
+    "EXT. STREET - NIGHT\n\n"
+    "Alice walks home alone.\n\n"
+    "ALICE\nSomething feels wrong.\n\n"
+    "INT. APARTMENT - CONTINUOUS\n\n"
+    "The door creaks open.\n"
+).encode("utf-8")
+
+
+def test_estimate_from_script_id_only():
+    """
+    Upload a script, then request a budget estimate supplying only script_id.
+    The router must derive scene/location/character counts from the store
+    and return a valid 202 response.
+    """
+    sid = _upload_script(_DEMO_SCRIPT)
+    resp = _post({"script_id": sid, "currency": "USD", "region": "international"})
+    assert resp.status_code == 202
+    body = resp.json()
+    assert body["script_id"] == sid
+    assert body["estimated_shoot_days"] >= 1
+    assert body["total_estimated_cost"] > 0
+    assert len(body["line_items"]) == 6
+
+
+def test_estimate_from_unknown_script_id_returns_404():
+    """store-lookup mode with an unknown script_id must return 404."""
+    resp = _post({"script_id": "no-such-script-id", "currency": "USD", "region": "gulf"})
+    assert resp.status_code == 404
+
+
+def test_estimate_explicit_counts_unaffected_by_store():
+    """
+    Explicit-count mode must work even when the script_id is not in the store.
+    The store is NOT consulted when scene_count is supplied.
+    """
+    resp = _post(_valid_payload(script_id="any-label", scene_count=10,
+                                location_count=2, character_count=3))
+    assert resp.status_code == 202
+    assert resp.json()["total_estimated_cost"] > 0
