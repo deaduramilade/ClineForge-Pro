@@ -15,6 +15,7 @@ class SceneMetadata(BaseModel):
     location: str = ""
     time_of_day: str = ""
     mood: str = ""
+    dialogue: list[str] = Field(default_factory=list)
     language: str = "en"
 
 
