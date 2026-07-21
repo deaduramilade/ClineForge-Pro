@@ -37,7 +37,7 @@ import dataclasses
 
 import pytest
 
-from services.script_parser import ScriptParser
+from src.backend.services.script_parser import ScriptParser
 from helpers import make_docx_bytes, make_minimal_pdf_bytes, txt_bytes
 
 # ---------------------------------------------------------------------------
