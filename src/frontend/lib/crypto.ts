@@ -36,7 +36,7 @@ export async function deriveKey(
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      salt: new Uint8Array(salt),
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
