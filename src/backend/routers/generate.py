@@ -10,12 +10,14 @@ from src.backend.services import script_store
 from src.backend.services.huggingface_image_provider import (
     HuggingFaceImageGenerationProvider,
 )
+from src.backend.services.huggingface_scene_reasoning_provider import (
+    HuggingFaceSceneReasoningProvider,
+)
 from src.backend.services.image_generation import (
     ImageGenerationError,
     ImageGenerationService,
 )
 from src.backend.services.scene_reasoning import (
-    GraniteSceneReasoningProvider,
     SceneReasoningError,
     SceneReasoningService,
 )
@@ -71,7 +73,7 @@ class AudioResponse(BaseModel):
 
 def _build_storyboard_service() -> StoryboardGenerationService:
     """Build the storyboard pipeline lazily from environment configuration."""
-    reasoning_provider = GraniteSceneReasoningProvider()
+    reasoning_provider = HuggingFaceSceneReasoningProvider()
     reasoning_service = SceneReasoningService(reasoning_provider)
 
     image_provider = HuggingFaceImageGenerationProvider()
