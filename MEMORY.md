@@ -53,7 +53,7 @@ DecisionRationaleDateUse 4-phase roadmap instead of original 6 phasesTight timel
 
 Backend: FastAPI (Python)
 Frontend: Next.js + TypeScript + Tailwind CSS
-AI Stack: IBM Granite via watsonx.ai (primary) + Hugging Face for supplementary models
+AI Stack: Hugging Face Inference Providers (scene reasoning + image generation, live and working as of 27 July). IBM Granite via watsonx.ai remains a planned upgrade — watsonx account/credential setup was a blocker during Phase 1, so Hugging Face was used to ship a working pipeline; see CHARTER.md §9.
 Security Layer: Client-side encryption before upload + server-side watermarking/provenance on generated assets
 Data Flow: Script → Encryption (client) → Parsing → Scene JSON → Generation → Watermarking → UI
 Demo Strategy: Maintain a cached “happy path” judge-line scenario as backup for live demo reliability

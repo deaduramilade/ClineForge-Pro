@@ -21,26 +21,29 @@
 │                                                              │
 │  /api/health    → Health check & system status              │
 │  /api/scripts   → Script upload, decrypt, parse             │
-│  /api/generate  → Storyboard generation (Granite)           │
+│  /api/generate  → Storyboard generation (Hugging Face)       │
 │  /api/animatic  → Motion animatic export pipeline           │
 │  /api/budget    → Production budget estimator               │
 │                                                              │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                    Services Layer                    │   │
-│  │  script_parser | granite_service | watermark        │   │
-│  │  budget_estimator | animatic | encryption_utils     │   │
+│  │  script_parser | storyboard_service | watermark      │   │
+│  │  budget_estimator | animatic | crypto_utils          │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────┬───────────────────────────────────────────┘
                   │
         ┌─────────┴─────────┐
         │                   │
         ▼                   ▼
-┌──────────────┐   ┌──────────────────┐
-│ IBM watsonx  │   │ Local Watermark   │
-│ (Granite LLM │   │ Service (C2PA-    │
-│  + Vision)   │   │  inspired)        │
-└──────────────┘   └──────────────────┘
+┌──────────────────┐   ┌──────────────────┐
+│ Hugging Face      │   │ Local Watermark   │
+│ Inference         │   │ Service (C2PA-    │
+│ (scene reasoning  │   │  inspired)        │
+│  + image gen)     │   │                   │
+└──────────────────┘   └──────────────────┘
 ```
+
+*IBM Granite via watsonx.ai remains a planned upgrade — see CHARTER.md §9.*
 
 ---
 
@@ -68,7 +71,10 @@
 | `routers/animatic.py` | Motion animatic export endpoints |
 | `routers/budget.py` | Budget estimator endpoints |
 | `services/script_parser.py` | Arabic/English script parsing & scene segmentation |
-| `services/granite_service.py` | IBM Granite API client & prompt engineering |
+| `services/huggingface_scene_reasoning_provider.py` | Hugging Face scene reasoning & cinematic prompt generation |
+| `services/huggingface_image_provider.py` | Hugging Face image generation adapter |
+| `services/storyboard_service.py` | Orchestrates scene reasoning → image generation |
+| `services/crypto_utils.py` | Server-side AES-256-GCM decryption |
 | `services/watermark.py` | C2PA-inspired watermark embedding |
 | `services/budget_estimator.py` | Production cost estimation logic |
 | `services/animatic.py` | Frame sequencing & video export |
@@ -91,7 +97,7 @@
    ↓
 6. For each scene → POST /api/generate/storyboard
    ↓
-7. granite_service.py calls IBM Granite multimodal
+7. storyboard_service.py calls Hugging Face scene reasoning + image generation
    ↓
 8. Generated frames → watermark.py embeds C2PA watermark
    ↓
@@ -123,7 +129,7 @@
 | Frontend styling | Tailwind CSS | 3.x |
 | Backend framework | FastAPI | 0.111.x |
 | Backend language | Python | 3.11 |
-| AI provider | IBM Granite (watsonx.ai) | latest |
+| AI provider | Hugging Face Inference Providers (IBM Granite/watsonx.ai planned) | latest |
 | Encryption | WebCrypto (browser) + cryptography (Python) | — |
 | Package manager | npm (frontend), pip (backend) | — |
 
@@ -135,8 +141,11 @@ See `.env.example` for all required environment variables. Critical ones:
 
 | Variable | Purpose |
 |----------|---------|
-| `WATSONX_API_KEY` | IBM watsonx.ai API key |
-| `WATSONX_PROJECT_ID` | watsonx.ai project ID |
-| `WATSONX_URL` | watsonx.ai endpoint URL |
+| `HUGGINGFACE_API_TOKEN` | Required — Hugging Face Inference Providers token |
+| `SCENE_REASONING_MODEL_ID` | Required — HF model used for scene reasoning |
+| `IMAGE_GENERATION_MODEL_ID` | Required — HF model used for storyboard image generation |
+| `WATSONX_API_KEY` | Planned upgrade — IBM watsonx.ai API key (not currently used) |
+| `WATSONX_PROJECT_ID` | Planned upgrade — watsonx.ai project ID (not currently used) |
+| `WATSONX_URL` | Planned upgrade — watsonx.ai endpoint URL (not currently used) |
 | `ENCRYPTION_SALT` | Server-side salt for key derivation |
 | `ALLOWED_ORIGINS` | CORS allowed origins list |

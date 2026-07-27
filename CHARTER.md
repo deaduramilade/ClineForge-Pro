@@ -1,6 +1,6 @@
 CineForge AI Pro
 Secure & Intelligent Script-to-Storyboard Copilot
-Powered by IBM Granite & IBM Bob
+Powered by Hugging Face & IBM Bob
 IBM SkillsBuild AI Builders Challenge — July 2026
 Version 2.1 | 8 July 2026
 1. Executive Summary
@@ -73,7 +73,7 @@ RiskLikelihoodMitigationArabic NLP parsing on non-standard scriptsMediumRule-bas
 7. Team Roles
 
 Data Science Lead: Script parsing, scene schema, Budget Estimator + worked example
-Machine Learning Engineer: Granite integration, multimodal generation, animatic assembly
+Machine Learning Engineer: Hugging Face integration, multimodal generation, animatic assembly (Granite/watsonx.ai planned — see §9)
 Cybersecurity Specialist: Encryption, watermarking, provenance, Risk Register
 Full-Stack Developers: Next.js frontend, FastAPI backend, Live Judge Mode, UI polish
 
@@ -102,7 +102,7 @@ Phase 2: Generative Core & Security Hardening
 Dates: 16 – 22 July 2026 (7 days)
 Objectives
 
-Implement IBM Granite prompt templates for cinematography
+Implement Hugging Face prompt templates for cinematography (IBM Granite/watsonx.ai integration planned as a future upgrade — see §9)
 Build multimodal generation pipeline (Text-to-Image + Text-to-Audio)
 Add C2PA-inspired provenance metadata and forensic watermarking
 Finalize Risk Register with mitigations
@@ -155,10 +155,11 @@ Bob Integration: Final Ask Mode debugging pass and comprehensive documentation o
 9. Investor Appeal & Future Potential
 CineForge is built with commercial scalability in mind:
 
-Defensibility: Security architecture + IBM stack + Arabic capability creates a meaningful moat.
+Defensibility: Security architecture + Arabic capability creates a meaningful moat.
 Monetization: Freemium for creators + paid tiers for studios and agencies.
 Extensibility: Modular design supports easy addition of new languages, integration with professional tools (Celtx, DaVinci), and future video generation capabilities.
 Market Positioning: Combines generative AI, security, and production business intelligence — a rare and attractive combination for investors in the creative AI space.
+IBM Stack Roadmap: Current generation pipeline uses Hugging Face Inference Providers (chosen after watsonx.ai account/credential setup became a blocker during Phase 1 — see MEMORY.md). IBM Granite via watsonx.ai remains a planned upgrade behind the existing provider-neutral image-generation and scene-reasoning interfaces, requiring no pipeline redesign to add.
 
 10. Governance & Compliance
 
