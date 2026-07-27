@@ -11,21 +11,31 @@ The ``script_id`` returned is a deterministic 16-character SHA-256 prefix of
 the raw file bytes.  Uploading identical bytes twice therefore returns the
 same ``script_id`` without re-parsing.
 
-Decryption note (MVP limitation)
-----------------------------------
-SECURITY.md requires the client to AES-256-GCM-encrypt scripts before upload.
-Decryption is the responsibility of the Cybersecurity Specialist and is NOT
-yet implemented.  For the competition demo, plaintext files are accepted
-directly.  The decryption step will slot in between ``file.read()`` and
-``ScriptParser.parse()`` without changing any other code in this module.
+Decryption note (now wired)
+----------------------------
+If the client sends a non-empty ``passphrase`` form field alongside the
+file, the upload is treated as AES-256-GCM ciphertext (salt||iv||
+ciphertext+tag, matching ``lib/crypto.ts``'s ``encryptFile()`` output)
+and decrypted server-side before parsing — see ``services/crypto_utils.py``.
+If ``passphrase`` is omitted, the file is treated as plaintext, preserving
+backward compatibility with the original MVP behaviour and all existing
+callers/tests.
+
+IMPORTANT: encryption only transforms the file's *bytes*. The uploaded
+filename must still carry the original extension (e.g. ``script.txt``,
+not ``script.enc``) — ``ScriptParser`` dispatches on filename extension,
+and it runs *after* decryption, so a renamed extension will fail parsing
+even though decryption succeeded. The frontend should encrypt the file's
+contents but keep ``file.name`` unchanged when uploading.
 """
 
 import hashlib
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from src.backend.models.schemas import ParsedScriptResponse, SceneMetadata
+from src.backend.services.crypto_utils import DecryptionError, decrypt_payload
 from src.backend.services.script_parser import ScriptParser
 from src.backend.services.script_store import exists, get, save
 
@@ -73,7 +83,15 @@ def _make_script_id(file_bytes: bytes) -> str:
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload a script file, parse it, and store the result",
 )
-async def upload_script(file: UploadFile) -> ScriptUploadResponse:
+async def upload_script(
+    file: UploadFile,
+    passphrase: str | None = Form(
+        default=None,
+        description="If provided, the uploaded file is treated as "
+        "AES-256-GCM ciphertext (see lib/crypto.ts) and decrypted with "
+        "this passphrase before parsing. Omit for plaintext uploads.",
+    ),
+) -> ScriptUploadResponse:
     """
     Accept a script file (.txt, .pdf, .docx), parse it with
     ``ScriptParser``, and persist the result in the ephemeral store.
@@ -85,8 +103,8 @@ async def upload_script(file: UploadFile) -> ScriptUploadResponse:
     Uploading the same file twice is idempotent: the stored result is reused
     and parsing is skipped.
 
-    **MVP limitation:** client-side AES-256 decryption is not yet wired.
-    The endpoint currently accepts plaintext files for the competition demo.
+    If ``passphrase`` is supplied, the upload is decrypted server-side
+    before parsing (see module docstring for the filename caveat).
     """
     allowed_mime_types = {
         "application/pdf",
@@ -108,6 +126,15 @@ async def upload_script(file: UploadFile) -> ScriptUploadResponse:
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File exceeds maximum allowed size of 50 MB.",
         )
+
+    if passphrase:
+        try:
+            contents = decrypt_payload(contents, passphrase)
+        except DecryptionError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
 
     script_id = _make_script_id(contents)
     filename = file.filename or "unknown"

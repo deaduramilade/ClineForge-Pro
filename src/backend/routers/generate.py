@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.backend.services import script_store
+from src.backend.services import frame_store, script_store
 from src.backend.services.huggingface_image_provider import (
     HuggingFaceImageGenerationProvider,
 )
@@ -22,8 +22,11 @@ from src.backend.services.scene_reasoning import (
     SceneReasoningService,
 )
 from src.backend.services.storyboard_service import StoryboardGenerationService
+from src.backend.services.watermark import WatermarkService
 
 router = APIRouter(tags=["generate"])
+
+_watermark_service = WatermarkService(project_id="cineforge-demo")
 
 
 class StoryboardRequest(BaseModel):
@@ -131,17 +134,30 @@ async def generate_storyboard(
         ) from exc
 
     generated_image = result.generated_image
+
+    watermarked_bytes, _manifest = await _watermark_service.embed(
+        generated_image.image_bytes, model_id=generated_image.model_id
+    )
+
+    frame_store.save_frame(
+        request.script_id,
+        frame_store.StoredFrame(
+            scene_index=request.scene_index,
+            image_bytes=watermarked_bytes,
+            mime_type="image/png",
+            watermarked=True,
+        ),
+    )
+
     generation_time = int((time.perf_counter() - start_time) * 1000)
 
     return StoryboardResponse(
         scene_index=request.scene_index,
-        image_data_b64=base64.b64encode(
-            generated_image.image_bytes
-        ).decode("ascii"),
-        mime_type=generated_image.mime_type,
+        image_data_b64=base64.b64encode(watermarked_bytes).decode("ascii"),
+        mime_type="image/png",
         provider_id=generated_image.provider_id,
         model_id=generated_image.model_id,
-        watermarked=False,
+        watermarked=True,
         style=request.style,
         generation_time_ms=generation_time,
     )
@@ -164,4 +180,24 @@ async def generate_audio(request: AudioRequest) -> AudioResponse:
     return AudioResponse(
         audio_url=audio_url,
         generation_time_ms=generation_time,
+    )
+
+
+class FrameCountResponse(BaseModel):
+    script_id: str
+    frame_count: int
+
+
+@router.get(
+    "/frames/{script_id}",
+    response_model=FrameCountResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Count storyboard frames generated so far for a script",
+)
+async def get_frame_count(script_id: str) -> FrameCountResponse:
+    """Lightweight status check — used by the Judge Mode dashboard to show
+    real generation progress rather than a hardcoded placeholder."""
+    return FrameCountResponse(
+        script_id=script_id,
+        frame_count=len(frame_store.get_frames(script_id)),
     )

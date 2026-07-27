@@ -106,6 +106,20 @@ def test_missing_configuration_returns_503(monkeypatch):
     )
 
 
+def _real_png_bytes() -> bytes:
+    """A minimal real PNG, decodable by Pillow — needed now that the
+    endpoint genuinely watermarks the image rather than passing bytes
+    through untouched."""
+    import io
+
+    from PIL import Image
+
+    img = Image.new("RGB", (8, 8), (10, 20, 30))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def test_success_returns_generated_image(monkeypatch):
     monkeypatch.setattr(
         generate.script_store,
@@ -113,7 +127,7 @@ def test_success_returns_generated_image(monkeypatch):
         lambda _: SCRIPT,
     )
 
-    image_bytes = b"\x89PNG\r\n\x1a\nfake-image-data"
+    image_bytes = _real_png_bytes()
 
     result = StoryboardGenerationResult(
         cinematic_prompt=None,
@@ -144,11 +158,16 @@ def test_success_returns_generated_image(monkeypatch):
     body = response.json()
 
     assert body["scene_index"] == 0
-    assert base64.b64decode(body["image_data_b64"]) == image_bytes
+    # Bytes are no longer identical to the provider's raw output — the
+    # endpoint now re-encodes through the watermarking step. Assert it's
+    # a valid, watermarked PNG instead of a byte-for-byte match.
+    returned_bytes = base64.b64decode(body["image_data_b64"])
+    assert returned_bytes != image_bytes
+    assert returned_bytes.startswith(b"\x89PNG\r\n\x1a\n")
     assert body["mime_type"] == "image/png"
     assert body["provider_id"] == "test-provider"
     assert body["model_id"] == "test-model"
-    assert body["watermarked"] is False
+    assert body["watermarked"] is True
     assert body["style"] == "cinematic"
     assert isinstance(body["generation_time_ms"], int)
 
